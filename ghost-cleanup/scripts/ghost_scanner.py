@@ -26,16 +26,30 @@ def resolve_import(current_dir, import_path):
 
 def scan_project(root_path):
     root = Path(root_path).resolve()
-    all_files = {f for f in root.rglob("*") if f.is_file() and 'node_modules' not in str(f)}
+    all_files = set()
     
-    # Cachear contenido de archivos de código para búsqueda de assets en un solo loop
+    # Directorios a ignorar completamente
+    IGNORE_DIRS = {'.git', '__pycache__', '.mypy_cache', '.next', '.venv', 'node_modules', '.DS_Store'}
+    
+    for f in root.rglob("*"):
+        # Saltar si el archivo o cualquier parte de su ruta está en IGNORE_DIRS o empieza con punto
+        if any(part in IGNORE_DIRS or (part.startswith('.') and part != '.') for part in f.parts):
+            continue
+            
+        if f.is_file():
+            all_files.add(f)
+
+    # Cachear contenido de archivos de código
     code_contents = {}
     entry_points = []
     for f in all_files:
         if f.suffix in {'.ts', '.tsx', '.js', '.jsx', '.py'}:
-            code_contents[f] = f.read_text(errors='ignore')
-            if f.name in ['main.py', 'index.ts', 'index.js', 'page.tsx']:
-                entry_points.append(f)
+            try:
+                content = f.read_text(errors='ignore')
+                code_contents[f] = content
+                if f.name in ['main.py', 'index.ts', 'index.js', 'page.tsx']:
+                    entry_points.append(f)
+            except: continue
 
     reachable = set(entry_points)
     queue = list(entry_points)
